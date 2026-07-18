@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Riwayat {{ host }} — Cloud Audit Bot{% endblock %}
+{% block content %}
+
+<a class="back" href="{{ url_for('dashboard') }}">&larr; Kembali ke dashboard</a>
+<h1>{{ host }}</h1>
+<p style="color:var(--muted); font-size:14px; margin-top:0;">Riwayat {{ scans|length }} scan terakhir.</p>
+
+{% if not scans %}
+  <div class="empty">Belum ada riwayat scan untuk target ini.</div>
+{% else %}
+  {% for s in scans %}
+    <div class="scan-block">
+      <div class="head">
+        <div>
+          <div class="ring" style="--pct: {{ s.risk_score }}; --ring-color: {{ s.ring_color }}; display:inline-flex; vertical-align:middle; margin-right:10px;">
+            <span class="score">{{ s.risk_score }}</span>
+          </div>
+          <span class="mono" style="color:var(--muted); font-size:13px;">{{ s.scanned_at[:19].replace('T',' ') }} UTC</span>
+        </div>
+        {% if s.report_path %}
+          <a href="{{ url_for('download_report', scan_id=s.id) }}"><button type="button" class="secondary">⬇ Unduh PDF</button></a>
+        {% endif %}
+      </div>
+
+      {% if not s.findings %}
+        <div class="empty" style="padding:14px;">Tidak ada temuan pada scan ini.</div>
+      {% else %}
+        {% for f in s.findings %}
+          <div class="finding">
+            <span class="badge {{ f.severity }}">{{ f.severity }}</span>
+            <span class="badge" style="background:var(--surface); color:var(--muted);">{{ f.category }}</span>
+            <div class="title">{{ f.title }}</div>
+            <div class="desc">{{ f.description }}</div>
+            <div class="rec"><b>Rekomendasi:</b> {{ f.recommendation }}</div>
+          </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+  {% endfor %}
+{% endif %}
+
+{% endblock %}

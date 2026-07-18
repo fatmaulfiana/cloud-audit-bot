@@ -1,0 +1,70 @@
+# .github/workflows/scheduled-audit.yml
+#
+# Menjalankan cloud-audit-bot secara OTOMATIS dan TERJADWAL menggunakan
+# GitHub Actions — gratis tanpa batas untuk repo publik, tanpa perlu server
+# yang harus menyala 24 jam (menghindari masalah spin-down di free tier
+# hosting seperti Render).
+#
+# Cara kerja:
+#   1. Berjalan sesuai jadwal cron (default: setiap 6 jam) ATAU bisa dipicu
+#      manual dari tab "Actions" di GitHub (tombol "Run workflow") — cocok
+#      untuk didemokan di video.
+#   2. Menjalankan app.py untuk mengaudit target yang diatur di TARGET_HOSTS.
+#   3. Mengirim ringkasan + PDF ke Telegram (kalau secret sudah diisi).
+#   4. Meng-commit kembali database/audit.db dan reports/*.pdf ke repo,
+#      supaya histori audit tersimpan permanen dan bisa dilihat siapa saja
+#      yang membuka repo (bukti "logging" untuk laporan).
+#   5. Laporan PDF juga diunggah sebagai "artifact" workflow (bisa diunduh
+#      dari tab Actions, tersimpan ~90 hari) sebagai cadangan bukti.
+
+name: Scheduled Cloud Security Audit
+
+on:
+  schedule:
+    # Setiap 6 jam (format cron: menit jam tanggal bulan hari-minggu, UTC)
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}   # tombol "Run workflow" manual di tab Actions
+
+permissions:
+  contents: write   # perlu izin tulis untuk commit balik hasil scan ke repo
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Jalankan audit
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
+          TARGET_HOSTS: ${{ vars.TARGET_HOSTS }}
+          S3_BUCKETS: ${{ vars.S3_BUCKETS }}
+          NOTIFY_MIN_SEVERITY: ${{ vars.NOTIFY_MIN_SEVERITY || 'MEDIUM' }}
+        run: python app.py
+
+      - name: Commit hasil scan ke repo (histori & bukti audit)
+        run: |
+          git config user.name "cloud-audit-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -f database/audit.db reports/*.pdf 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "chore: hasil audit otomatis $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push
+
+      - name: Upload laporan sebagai artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-report-${{ github.run_id }}
+          path: reports/*.pdf
+          retention-days: 90

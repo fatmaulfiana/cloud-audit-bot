@@ -1,0 +1,29 @@
+# render.yaml
+# Render "Blueprint" — memungkinkan deploy otomatis dengan klik "New +" ->
+# "Blueprint" di dashboard Render, lalu pilih repo ini. Render akan membaca
+# file ini dan membuatkan service-nya otomatis.
+#
+# Kredensial (Telegram, AbuseIPDB) TIDAK dituliskan di sini (sync: false)
+# — isi manual lewat Render Dashboard -> service ini -> tab "Environment"
+# supaya tidak ter-commit ke git.
+
+services:
+  - type: web
+    name: cloud-audit-bot-dashboard
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn -w 2 -b 0.0.0.0:$PORT webapp:app"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: ABUSEIPDB_API_KEY
+        sync: false
+      - key: FLASK_SECRET_KEY
+        generateValue: true
+      - key: NOTIFY_MIN_SEVERITY
+        value: MEDIUM

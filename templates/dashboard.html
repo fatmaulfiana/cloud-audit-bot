@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Cloud Audit Bot{% endblock %}
+{% block content %}
+
+<h1>Target Audit</h1>
+<p style="color:var(--muted); font-size:14px; margin-top:0;">
+  Tambahkan domain atau IP publik yang ingin diperiksa konfigurasi keamanannya.
+</p>
+
+<div class="card">
+  <form class="add-form" method="post" action="{{ url_for('add_target_route') }}">
+    <div class="field" style="flex:2;">
+      <label for="host">Domain / IP target</label>
+      <input type="text" id="host" name="host" placeholder="mis. myserver.example.com" required>
+    </div>
+    <div class="field" style="flex:2;">
+      <label for="s3_buckets">Nama S3 bucket (opsional, pisahkan koma)</label>
+      <input type="text" id="s3_buckets" name="s3_buckets" placeholder="mis. my-backup-bucket">
+    </div>
+    <button type="submit">+ Tambah target</button>
+  </form>
+</div>
+
+<h2>Daftar Target ({{ targets|length }})</h2>
+
+{% if not targets %}
+  <div class="empty">Belum ada target. Tambahkan domain/IP di atas untuk mulai audit.</div>
+{% else %}
+  <div class="target-list">
+    {% for t in targets %}
+      <div class="target-row">
+        <div class="ring" style="--pct: {{ t.last_scan.risk_score if t.last_scan else 0 }}; --ring-color: {{ t.ring_color }};">
+          <span class="score">{{ t.last_scan.risk_score if t.last_scan else '—' }}</span>
+        </div>
+        <div class="target-info">
+          <div class="host">{{ t.host }}</div>
+          <div class="meta">
+            {% if t.last_scan %}
+              Scan terakhir: {{ t.last_scan.scanned_at[:19].replace('T', ' ') }} UTC
+            {% else %}
+              Belum pernah di-scan
+            {% endif %}
+          </div>
+        </div>
+        <div class="actions">
+          <form method="post" action="{{ url_for('scan_target_route', host=t.host) }}">
+            <label style="font-size:11px; display:flex; align-items:center; gap:4px; color:var(--muted); margin-bottom:6px;">
+              <input type="checkbox" name="send_telegram" checked style="width:auto;"> kirim ke Telegram
+            </label>
+            <button type="submit">▶ Scan sekarang</button>
+          </form>
+          <a href="{{ url_for('history_route', host=t.host) }}"><button type="button" class="secondary">Riwayat</button></a>
+          <form method="post" action="{{ url_for('delete_target_route', host=t.host) }}"
+                onsubmit="return confirm('Hapus target {{ t.host }} beserta histori tampilannya?');">
+            <button type="submit" class="danger">Hapus</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% endblock %}

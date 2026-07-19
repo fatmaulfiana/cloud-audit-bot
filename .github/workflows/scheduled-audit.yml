@@ -22,7 +22,7 @@ name: Scheduled Cloud Security Audit
 on:
   schedule:
     # Setiap 6 jam (format cron: menit jam tanggal bulan hari-minggu, UTC)
-    - cron: "0 */6 * * *"
+      - cron: "0 * * * *"
   workflow_dispatch: {}   # tombol "Run workflow" manual di tab Actions
 
 permissions:
